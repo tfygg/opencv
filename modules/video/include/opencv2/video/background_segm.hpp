@@ -90,6 +90,8 @@ public:
     //! the update operator
     virtual void operator()(InputArray image, OutputArray fgmask, double learningRate=0);
 
+	virtual void getBackgroundImage(OutputArray backgroundImage) const;
+
     //! re-initiaization method
     virtual void initialize(Size frameSize, int frameType);
 

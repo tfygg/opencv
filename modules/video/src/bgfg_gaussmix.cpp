@@ -415,6 +415,56 @@ void BackgroundSubtractorMOG::operator()(InputArray _image, OutputArray _fgmask,
         CV_Error( CV_StsUnsupportedFormat, "Only 1- and 3-channel 8-bit images are supported in BackgroundSubtractorMOG" );
 }
 
+void BackgroundSubtractorMOG::getBackgroundImage(OutputArray backgroundImage) const
+{
+   int nchannels = CV_MAT_CN(frameType);
+		CV_Assert( nchannels == 3 );
+		Mat meanBackground(frameSize, CV_8UC3, Scalar::all(0));		
+		
+		const MixData<Vec3f>* mptr = (MixData<Vec3f>*)bgmodel.data;	
+		for(int row=0; row<meanBackground.rows; row++)
+		{
+			for(int col=0; col<meanBackground.cols; col++, mptr += nmixtures)
+			{				
+				Vec3f meanVal;
+				float totalWeight = 0.f;
+				for( int k = 0; k < nmixtures; k++ )
+				{
+					float w = mptr[k].weight;					
+					if( w < FLT_EPSILON )
+						break;
+					
+					totalWeight += w;
+					 meanVal += mptr[k].mean*w;
+					 if ( totalWeight> backgroundRatio)
+						 break;
+				}
+				meanVal *= (1.f / totalWeight);
+				meanBackground.at<Vec3b>(row, col) = Vec3b(meanVal);				
+			}
+		}
+
+		switch(CV_MAT_CN(frameType))
+		{
+		case 1:
+			{
+				vector<Mat> channels;
+				split(meanBackground, channels);
+				channels[0].copyTo(backgroundImage);
+				break;
+			}
+
+		case 3:
+			{
+				meanBackground.copyTo(backgroundImage);
+				break;
+			}
+
+		default:
+			CV_Error(CV_StsUnsupportedFormat, "");
+		}		
+}
+
 }
 
 /* End of file. */
