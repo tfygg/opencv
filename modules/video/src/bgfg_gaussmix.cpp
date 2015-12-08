@@ -161,9 +161,9 @@ static void process8uC1( const Mat& image, Mat& fgmask, double learningRate,
                 float pix = src[x];
                 int kHit = -1, kForeground = -1;
 				
-		/*************************************************************
-		S1: 判断像素是否有匹配的高斯函数，并进行参数更新，以及高斯函数排序
-		*************************************************************/
+			/*************************************************************
+			S1: 判断像素是否有匹配的高斯函数，并进行参数更新，以及高斯函数的排序
+			*************************************************************/
                 for( k = 0; k < K; k++ )
                 {
                     float w = mptr[k].weight;
@@ -175,9 +175,9 @@ static void process8uC1( const Mat& image, Mat& fgmask, double learningRate,
                     float diff = pix - mu;
                     float d2 = diff*diff;
 
-				/************************************************************
-				S1-1: 如果该像素满足第k个高斯函数，则进行参数更新并排序
-				*************************************************************/
+					/************************************************************
+					S1-1: 如果该像素满足第k个高斯函数，则进行参数更新并排序
+					*************************************************************/
                     if( d2 < vT*var )		// 判断像素是否匹配的高斯函数的公式:  (pix - mu)^2 < 2.5*2.5*var (第一个高斯函数) 
                     {
                         wsum -= w;
@@ -217,29 +217,29 @@ static void process8uC1( const Mat& image, Mat& fgmask, double learningRate,
                         wsum += mptr[k].weight;		//计算所有高斯函数的权值之和
 
 			/************************************************************
-			S2: 前景判断
+			S2: 背景判断
 			*************************************************************/
                 float wscale = 1.f/wsum;					//权值归一化以后，前 K 个高斯函数的权值之和
                 wsum = 0;
-                for( k = 0; k < K; k++ )
+                for( k = 0; k < K; k++ )		//计算出有效像素模型个数 B, 公式 B = arg min(sum(w)>T)
                 {
                     wsum += mptr[k].weight *= wscale;		
                     mptr[k].sortKey *= wscale;
                     if( wsum > T && kForeground < 0 )		//前 k 个权重之和大于阈值 T 的高斯模型，被认为是有效背景模型。
-                        kForeground = k+1;					//第几个模型之后就判为前景了
+                        kForeground = k+1;					//kForeground表示: 第 k+1 以后的模型之后就判为前景了
                 }
 
                 dst[x] = (uchar)(-(kHit >= kForeground));	//匹配模型的序号< kForeground，则认为是背景。否则被认为是前景
             }
         }
-        else
+        else//如果学习速率小于等于0，则没有背景更新过程
         {
             for( x = 0; x < cols; x++, mptr += K )
             {
                 float pix = src[x];
                 int kHit = -1, kForeground = -1;
 
-                for( k = 0; k < K; k++ )
+                for( k = 0; k < K; k++ )	//判断每一个像素是否有匹配的高斯模型
                 {
                     if( mptr[k].weight < FLT_EPSILON )
                         break;
@@ -247,7 +247,7 @@ static void process8uC1( const Mat& image, Mat& fgmask, double learningRate,
                     float var = mptr[k].var;
                     float diff = pix - mu;
                     float d2 = diff*diff;
-                    if( d2 < vT*var )
+                    if( d2 < vT*var )		//判断的公式
                     {
                         kHit = k;
                         break;
@@ -430,52 +430,52 @@ void BackgroundSubtractorMOG::operator()(InputArray _image, OutputArray _fgmask,
 
 void BackgroundSubtractorMOG::getBackgroundImage(OutputArray backgroundImage) const
 {
-   int nchannels = CV_MAT_CN(frameType);
-		CV_Assert( nchannels == 3 );
-		Mat meanBackground(frameSize, CV_8UC3, Scalar::all(0));		
+	int nchannels = CV_MAT_CN(frameType);
+	CV_Assert( nchannels == 3 );
+	Mat meanBackground(frameSize, CV_8UC3, Scalar::all(0));		
 		
-		const MixData<Vec3f>* mptr = (MixData<Vec3f>*)bgmodel.data;	
-		for(int row=0; row<meanBackground.rows; row++)
-		{
-			for(int col=0; col<meanBackground.cols; col++, mptr += nmixtures)
-			{				
-				Vec3f meanVal;
-				float totalWeight = 0.f;
-				for( int k = 0; k < nmixtures; k++ )
-				{
-					float w = mptr[k].weight;					
-					if( w < FLT_EPSILON )
-						break;
+	const MixData<Vec3f>* mptr = (MixData<Vec3f>*)bgmodel.data;	
+	for(int row=0; row<meanBackground.rows; row++)
+	{
+		for(int col=0; col<meanBackground.cols; col++, mptr += nmixtures)
+		{				
+			Vec3f meanVal;
+			float totalWeight = 0.f;
+			for( int k = 0; k < nmixtures; k++ )	//计算出有效像素模型个数 B, 公式 B = arg min(sum(w)>T)
+			{
+				float w = mptr[k].weight;					
+				if( w < FLT_EPSILON )
+					break;
 					
-					totalWeight += w;
-					 meanVal += mptr[k].mean*w;
-					 if ( totalWeight> backgroundRatio)
-						 break;
-				}
-				meanVal *= (1.f / totalWeight);
-				meanBackground.at<Vec3b>(row, col) = Vec3b(meanVal);				
+				totalWeight += w;
+				meanVal += mptr[k].mean*w;			//均值(即，像素值) * 权值 (前B个高斯模型)
+				if ( totalWeight> backgroundRatio)		//前 k 个权重之和大于阈值 T 的高斯模型，被认为是有效背景模型。
+					break;
 			}
+			meanVal *= (1.f / totalWeight);			//背景的每个像素值等于  sum(均值*权值)*sum(权值),就是前B个数据的期望。
+			meanBackground.at<Vec3b>(row, col) = Vec3b(meanVal);				
+		}
+	}
+
+	switch(CV_MAT_CN(frameType))
+	{
+		case 1:
+		{
+			vector<Mat> channels;
+			split(meanBackground, channels);
+			channels[0].copyTo(backgroundImage);
+				break;
 		}
 
-		switch(CV_MAT_CN(frameType))
-		{
-		case 1:
-			{
-				vector<Mat> channels;
-				split(meanBackground, channels);
-				channels[0].copyTo(backgroundImage);
-				break;
-			}
-
 		case 3:
-			{
-				meanBackground.copyTo(backgroundImage);
+		{
+			meanBackground.copyTo(backgroundImage);
 				break;
-			}
+		}
 
 		default:
-			CV_Error(CV_StsUnsupportedFormat, "");
-		}		
+		CV_Error(CV_StsUnsupportedFormat, "");
+	}		
 }
 
 }
