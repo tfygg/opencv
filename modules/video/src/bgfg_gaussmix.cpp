@@ -160,7 +160,10 @@ static void process8uC1( const Mat& image, Mat& fgmask, double learningRate,
                 float wsum = 0;
                 float pix = src[x];
                 int kHit = -1, kForeground = -1;
-
+				
+		/*************************************************************
+		S1: 判断像素是否有匹配的高斯函数，并进行参数更新，以及高斯函数排序
+		*************************************************************/
                 for( k = 0; k < K; k++ )
                 {
                     float w = mptr[k].weight;
@@ -171,29 +174,36 @@ static void process8uC1( const Mat& image, Mat& fgmask, double learningRate,
                     float var = mptr[k].var;
                     float diff = pix - mu;
                     float d2 = diff*diff;
-                    if( d2 < vT*var )
+
+				/************************************************************
+				S1-1: 如果该像素满足第k个高斯函数，则进行参数更新并排序
+				*************************************************************/
+                    if( d2 < vT*var )		// 判断像素是否匹配的高斯函数的公式:  (pix - mu)^2 < 2.5*2.5*var (第一个高斯函数) 
                     {
                         wsum -= w;
                         float dw = alpha*(1.f - w);
-                        mptr[k].weight = w + dw;
-                        mptr[k].mean = mu + alpha*diff;
-                        var = max(var + alpha*(d2 - var), minVar);
+                        mptr[k].weight = w + dw;			//更新第k个高斯函数的权值，公式 w=w+alfa*(1-w)
+                        mptr[k].mean = mu + alpha*diff;			//更新高斯函数的均值，公式 u=u+alfa*(X-u)
+                        var = max(var + alpha*(d2 - var), minVar);	//更新高斯函数的均值，公式 var1=var+alfa*(d2-var)，不能小于minVar
                         mptr[k].var = var;
-                        mptr[k].sortKey = w/sqrt(var);
+                        mptr[k].sortKey = w/sqrt(var);			//因为需要按照 W/σ 的降序排列，所以将其赋值为sortkey
 
-                        for( k1 = k-1; k1 >= 0; k1-- )
+                        for( k1 = k-1; k1 >= 0; k1-- )    //将SortKey从大到小排序，只有第k个高斯函数的参数进行了迭代
                         {
                             if( mptr[k1].sortKey >= mptr[k1+1].sortKey )
                                 break;
                             std::swap( mptr[k1], mptr[k1+1] );
-                        }
+                        }	
 
-                        kHit = k1+1;
+                        kHit = k1+1;		//在新列表中，像素与第 kHit 个高斯函数匹配
                         break;
                     }
                 }
 
-                if( kHit < 0 ) // no appropriate gaussian mixture found at all, remove the weakest mixture and create a new one
+				/************************************************************
+				S1-2: 如果该像素没有满足的高斯函数，则进行以下更新
+				*************************************************************/
+                if( kHit < 0 ) 
                 {
                     kHit = k = min(k, K-1);
                     wsum += w0 - mptr[k].weight;
@@ -204,19 +214,22 @@ static void process8uC1( const Mat& image, Mat& fgmask, double learningRate,
                 }
                 else
                     for( ; k < K; k++ )
-                        wsum += mptr[k].weight;
+                        wsum += mptr[k].weight;		//计算所有高斯函数的权值之和
 
-                float wscale = 1.f/wsum;
+			/************************************************************
+			S2: 前景判断
+			*************************************************************/
+                float wscale = 1.f/wsum;					//权值归一化以后，前 K 个高斯函数的权值之和
                 wsum = 0;
                 for( k = 0; k < K; k++ )
                 {
-                    wsum += mptr[k].weight *= wscale;
+                    wsum += mptr[k].weight *= wscale;		
                     mptr[k].sortKey *= wscale;
-                    if( wsum > T && kForeground < 0 )
-                        kForeground = k+1;
+                    if( wsum > T && kForeground < 0 )		//前 k 个权重之和大于阈值 T 的高斯模型，被认为是有效背景模型。
+                        kForeground = k+1;					//第几个模型之后就判为前景了
                 }
 
-                dst[x] = (uchar)(-(kHit >= kForeground));
+                dst[x] = (uchar)(-(kHit >= kForeground));	//匹配模型的序号< kForeground，则认为是背景。否则被认为是前景
             }
         }
         else

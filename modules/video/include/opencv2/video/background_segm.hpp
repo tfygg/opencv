@@ -1,4 +1,4 @@
-/*M///////////////////////////////////////////////////////////////////////////////////////
+﻿/*M///////////////////////////////////////////////////////////////////////////////////////
 //
 //  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
 //
@@ -138,11 +138,11 @@ public:
     virtual AlgorithmInfo* info() const;
 
 protected:
-    Size frameSize;
+    Size frameSize;    
     int frameType;
-    Mat bgmodel;
+    Mat bgmodel;		
     Mat bgmodelUsedModes;//keep track of number of modes per pixel
-    int nframes;
+    int nframes;		
     int history;
     int nmixtures;
     //! here it is the maximum allowed number of mixture components.
