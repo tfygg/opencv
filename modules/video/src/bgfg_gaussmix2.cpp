@@ -314,12 +314,23 @@ struct MOG2Invoker : ParallelLoopBody
 
                 float* mean_m = mean;
 
+			  /**************************************************************************
+                  	S1:	(1)为该像素在已存在的高斯模寻找是否有匹配的高斯模型;
+                  		(2)高斯模型个数的控制,						
+                 ***************************************************************************/
                 //////
                 //go through all modes
                 for( int mode = 0; mode < nmodes; mode++, mean_m += nchannels )
                 {
                     float weight = alpha1*gmm[mode].weight + prune;//need only weight if fit is found
                     int swap_count = 0;
+				
+					   /**************************************************************************
+                  			    S1-1:主要完成: 
+                  			    (1)计算方差;
+                  			    (2)判断是否是背景;
+                  			    (3)参数更新及排序,有两种情况:a更新已有模型；b为该像素新建一个高斯模型
+                  	    		***************************************************************************/
                     ////
                     //fit not found yet
                     if( !fitsPDF )
@@ -350,9 +361,9 @@ struct MOG2Invoker : ParallelLoopBody
                         //background? - Tb - usually larger than Tg
                         if( totalWeight < TB && dist2 < Tb*var )
                             background = true;
-
-                        //check fit
-                        if( dist2 < Tg*var )
+					
+                        //check fit   GMM的参数更新并排序
+                        if( dist2 < Tg*var )		//判断像素是否在3.0*方差内
                         {
                             /////
                             //belongs to the mode
@@ -395,6 +406,9 @@ struct MOG2Invoker : ParallelLoopBody
                         }
                     }//!bFitsPDF)
 
+					  /**************************************************************************
+                 	 	   S1-2: 判断是否要减少高斯模型个数					
+                		 ***************************************************************************/
                     //check prune
                     if( weight < -prune )
                     {
@@ -407,7 +421,7 @@ struct MOG2Invoker : ParallelLoopBody
                 }
                 //go through all modes
                 //////
-
+				
                 //renormalize weights
                 totalWeight = 1.f/totalWeight;
                 for( int mode = 0; mode < nmodes; mode++ )
@@ -417,6 +431,9 @@ struct MOG2Invoker : ParallelLoopBody
 
                 nmodes = nNewModes;
 
+			  /**************************************************************************
+                  	S2: 如果该像素无匹配的高斯模型，则新建一个高斯模型						
+                 ***************************************************************************/
                 //make new mode if needed and exit
                 if( !fitsPDF )
                 {
@@ -455,6 +472,9 @@ struct MOG2Invoker : ParallelLoopBody
                     }
                 }
 
+			  /**************************************************************************
+                  	S3:	阴影检测						
+                 ***************************************************************************/
                 //set the number of modes
                 modesUsed[x] = uchar(nmodes);
                 mask[x] = background ? 0 :
@@ -542,9 +562,9 @@ void BackgroundSubtractorMOG2::initialize(Size _frameSize, int _frameType)
     // the mixture weight (w),
     // the mean (nchannels values) and
     // the covariance
-    bgmodel.create( 1, frameSize.height*frameSize.width*nmixtures*(2 + nchannels), CV_32F );
+    bgmodel.create( 1, frameSize.height*frameSize.width*nmixtures*(2 + nchannels), CV_32F );//存储高斯模型所使用的矩阵的大小
     //make the array for keeping track of the used modes per pixel - all zeros at start
-    bgmodelUsedModes.create(frameSize,CV_8U);
+    bgmodelUsedModes.create(frameSize,CV_8U);//
     bgmodelUsedModes = Scalar::all(0);
 }
 
