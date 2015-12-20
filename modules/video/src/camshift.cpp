@@ -1,4 +1,4 @@
-/*M///////////////////////////////////////////////////////////////////////////////////////
+﻿/*M///////////////////////////////////////////////////////////////////////////////////////
 //
 //  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
 //
@@ -46,10 +46,10 @@
 //    Purpose: MeanShift algorithm
 //    Context:
 //    Parameters:
-//      imgProb     - 2D object probability distribution
-//      windowIn    - CvRect of CAMSHIFT Window intial size
-//      numIters    - If CAMSHIFT iterates this many times, stop
-//      windowOut   - Location, height and width of converged CAMSHIFT window
+//      imgProb     - 2D object probability distribution		//2D概率分布图像
+//      windowIn    - CvRect of CAMSHIFT Window intial size			//初始的窗口
+//      numIters    - If CAMSHIFT iterates this many times, stop			//停止迭代的标准
+//      windowOut   - Location, height and width of converged CAMSHIFT window		//查询结果
 //      len         - If != NULL, return equivalent len
 //      width       - If != NULL, return equivalent width
 //    Returns:
@@ -60,19 +60,20 @@ CV_IMPL int
 cvMeanShift( const void* imgProb, CvRect windowIn,
              CvTermCriteria criteria, CvConnectedComp* comp )
 {
-    CvMoments moments;
+    CvMoments moments;			//CvMoments用来计算矩形的重心，面积等形状特征
     int    i = 0, eps;
     CvMat  stub, *mat = (CvMat*)imgProb;
     CvMat  cur_win;
     CvRect cur_rect = windowIn;
 
-    if( comp )
+    if( comp )					//初始化跟踪窗口
         comp->rect = windowIn;
 
-    moments.m00 = moments.m10 = moments.m01 = 0;
+    moments.m00 = moments.m10 = moments.m01 = 0;			//把0阶矩和1阶矩先初始化置零
 
     mat = cvGetMat( mat, &stub );
-
+	
+	//各种输入变量不符合要求时显示错误信息 
     if( CV_MAT_CN( mat->type ) > 1 )
         CV_Error( CV_BadNumChannels, cvUnsupportedFormat );
 
@@ -80,11 +81,11 @@ cvMeanShift( const void* imgProb, CvRect windowIn,
         CV_Error( CV_StsBadArg, "Input window has non-positive sizes" );
 
     windowIn = cv::Rect(windowIn) & cv::Rect(0, 0, mat->cols, mat->rows);
+	
+    criteria = cvCheckTermCriteria( criteria, 1., 100 );		//迭代的标准，精度=1.0，迭代次数=100 
+    eps = cvRound( criteria.epsilon * criteria.epsilon );		//精度eps=1 
 
-    criteria = cvCheckTermCriteria( criteria, 1., 100 );
-    eps = cvRound( criteria.epsilon * criteria.epsilon );
-
-    for( i = 0; i < criteria.max_iter; i++ )
+    for( i = 0; i < criteria.max_iter; i++ )			//最大循环次数=最大迭代次数criteria.max_iter=100 
     {
         int dx, dy, nx, ny;
         double inv_m00;
@@ -97,17 +98,18 @@ cvMeanShift( const void* imgProb, CvRect windowIn,
         cur_rect.width = MAX(cur_rect.width, 1);
         cur_rect.height = MAX(cur_rect.height, 1);
 
-        cvGetSubRect( mat, &cur_win, cur_rect );
+        cvGetSubRect( mat, &cur_win, cur_rect );		//选取搜索区域，对该矩形区域计算它的0,1阶矩 
         cvMoments( &cur_win, &moments );
 
         /* Calculating center of mass */
         if( fabs(moments.m00) < DBL_EPSILON )
             break;
 
-        inv_m00 = moments.inv_sqrt_m00*moments.inv_sqrt_m00;
-        dx = cvRound( moments.m10 * inv_m00 - windowIn.width*0.5 );
-        dy = cvRound( moments.m01 * inv_m00 - windowIn.height*0.5 );
+        inv_m00 = moments.inv_sqrt_m00*moments.inv_sqrt_m00;		//搜索区域的质量m00 
+        dx = cvRound( moments.m10 * inv_m00 - windowIn.width*0.5 );		//搜索区域的水平重心偏移dx 
+        dy = cvRound( moments.m01 * inv_m00 - windowIn.height*0.5 );	//搜索区域的垂直重心偏移dy 
 
+		//搜索区域的重心坐标(nx,ny) 
         nx = cur_rect.x + dx;
         ny = cur_rect.y + dy;
 
@@ -116,7 +118,7 @@ cvMeanShift( const void* imgProb, CvRect windowIn,
         else if( nx + cur_rect.width > mat->cols )
             nx = mat->cols - cur_rect.width;
 
-        if( ny < 0 )
+        if( ny < 0 )	//跟踪目标处于图像边缘时进行一些相应的处理 
             ny = 0;
         else if( ny + cur_rect.height > mat->rows )
             ny = mat->rows - cur_rect.height;
@@ -126,12 +128,12 @@ cvMeanShift( const void* imgProb, CvRect windowIn,
         cur_rect.x = nx;
         cur_rect.y = ny;
 
-        /* Check for coverage centers mass & window */
+        /* Check for coverage centers mass & window */  //精度达到要求时即可退出循环 
         if( dx*dx + dy*dy < eps )
             break;
     }
 
-    if( comp )
+    if( comp )		//对meanshift函数的返回值赋值 
     {
         comp->rect = cur_rect;
         comp->area = (float)moments.m00;
