@@ -120,7 +120,8 @@ void BackgroundSubtractorMOG::initialize(Size _frameSize, int _frameType)
     // the mixture sort key (w/sum_of_variances), the mixture weight (w),
     // the mean (nchannels values) and
     // the diagonal covariance matrix (another nchannels values)
-    bgmodel.create( 1, frameSize.height*frameSize.width*nmixtures*(2 + 2*nchannels), CV_32F );
+    bgmodel.create( 1, frameSize.height*frameSize.width*nmixtures*(2 + 2*nchannels), CV_32F );//初始化一个1行*XX列的矩阵  
+   //该矩阵的大小是这样计算的：图像的行*列*混合模型的个数*（1（优先级）+ 1（权值）+ 2（均值 + 方差）*通道数）  参考template<typename VT> struct MixData{}
     bgmodel = Scalar::all(0);
 }
 
@@ -176,7 +177,7 @@ static void process8uC1( const Mat& image, Mat& fgmask, double learningRate,
                     float d2 = diff*diff;
 
 					/************************************************************
-					S1-1: 如果该像素满足第k个高斯函数，则进行参数更新并排序
+					S1-1: 如果该像素满足第k个高斯函数，则进行参数更新(EM但没有完全按照公式)并排序
 					*************************************************************/
                     if( d2 < vT*var )		// 判断像素是否匹配的高斯函数的公式:  (pix - mu)^2 < 2.5*2.5*var (第一个高斯函数) 
                     {
