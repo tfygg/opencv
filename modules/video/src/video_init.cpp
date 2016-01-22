@@ -45,6 +45,14 @@
 
 namespace cv
 {
+	
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CV_INIT_ALGORITHM(BackgroundSubtractorMOG3, "BackgroundSubtractor.MOG3",
+    obj.info()->addParam(obj, "history", obj.history);
+    obj.info()->addParam(obj, "nmixtures", obj.nmixtures);
+    obj.info()->addParam(obj, "backgroundRatio", obj.backgroundRatio);
+    obj.info()->addParam(obj, "noiseSigma", obj.noiseSigma))
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -93,6 +101,7 @@ CV_INIT_ALGORITHM(BackgroundSubtractorGMG, "BackgroundSubtractor.GMG",
 bool initModule_video(void)
 {
     bool all = true;
+	all &= !BackgroundSubtractorMOG3_info_auto.name().empty();
     all &= !BackgroundSubtractorMOG_info_auto.name().empty();
     all &= !BackgroundSubtractorMOG2_info_auto.name().empty();
     all &= !BackgroundSubtractorGMG_info_auto.name().empty();

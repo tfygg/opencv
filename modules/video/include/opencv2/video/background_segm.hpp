@@ -67,6 +67,41 @@ public:
     virtual void getBackgroundImage(OutputArray backgroundImage) const;
 };
 
+/*!
+ Gaussian Mixture-based Backbround/Foreground Segmentation Algorithm
+
+ author：tfygg
+*/
+class CV_EXPORTS_W BackgroundSubtractorMOG3 : public BackgroundSubtractor
+{
+public:
+    //! the default constructor
+    CV_WRAP BackgroundSubtractorMOG3();
+    //! the full constructor that takes the length of the history, the number of gaussian mixtures, the background ratio parameter and the noise strength
+    CV_WRAP BackgroundSubtractorMOG3(int history, int nmixtures, double backgroundRatio, double noiseSigma=0);
+    //! the destructor
+    virtual ~BackgroundSubtractorMOG3();
+    //! the update operator
+    virtual void operator()(InputArray image, OutputArray fgmask, double learningRate=0);
+
+	virtual void getBackgroundImage(OutputArray backgroundImage) const;
+
+    //! re-initiaization method
+    virtual void initialize(Size frameSize, int frameType);
+
+    virtual AlgorithmInfo* info() const;
+
+protected:
+    Size frameSize;
+    int frameType;
+    Mat bgmodel;
+    int nframes;
+    int history;
+    int nmixtures;
+    double varThreshold;
+    double backgroundRatio;
+    double noiseSigma;
+};
 
 /*!
  Gaussian Mixture-based Backbround/Foreground Segmentation Algorithm
